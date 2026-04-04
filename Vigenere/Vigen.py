@@ -1,8 +1,9 @@
+import string
+
 class Vigenere:
     # Конструктор для задания алфавита
     def __init__(self, ALFABET, text, key):
         self.ALFABET = ALFABET
-        # self.the_text_to_enc = the_text_to_enc
         self.text = text
         self.key = key
 
@@ -23,11 +24,9 @@ class Vigenere:
 
     # Функция шифрования текста(self - указатель с конструктора, the_text_to_enc - текст для шифровки, key - ключ)
     def encryption(self):
-        the_txt_to_enc = self.text
+        the_txt_to_enc = self.text.replace(' ', '')
         key = self.key
         len_enc = len(the_txt_to_enc)
-        print(key)
-        print(len_enc)
         key_to_longtxt = Vigenere.key_to_enc(key, len_enc)
         # Создаём переменную, содержащая в себе алфавит для шифра
         ALFABET = self.ALFABET
@@ -46,7 +45,7 @@ class Vigenere:
     # Функция расшифровки текста(self - указатель с конструктора, enc_txt - текст для расшифровки, key - ключ)
     def decrypion(self):
         len_enc = len(self.text)
-        enc_txt = self.text
+        enc_txt = self.text.replace(' ', '')
         key = self.key
         key_to_longtxt = Vigenere.key_to_enc(key, len_enc)
         ALFABET = self.ALFABET
