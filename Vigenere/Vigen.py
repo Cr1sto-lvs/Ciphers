@@ -1,5 +1,3 @@
-import string
-
 class Vigenere:
     # Конструктор для задания алфавита
     def __init__(self, ALFABET, text, key):
@@ -8,26 +6,24 @@ class Vigenere:
         self.key = key
 
     # Функция привода ключа к длине текста для зашифровки или расшифровки
-    @staticmethod #Декоратор, обозначающий функцию как статическую, нужно для  корректной работы кода без передачи класса как третьего аргумента
-    def key_to_enc(key, len_enc = 0):
+    # @staticmethod #Декоратор, обозначающий функцию как статическую, нужно для  корректной работы кода без передачи класса как третьего аргумента
+    def key_to_enc(self):
         i = 0
+        alph = self.ALFABET
         key_to_longtxt = ""
-        # Проверка условия, что длина ключа меньше чем сам текст для шифрования
-        if len(key) > len_enc:
-            key_to_longtxt = key[:len_enc]
-        else:
-            # Если условие не выполняется, то мы повторяем символы ключа, пока ключ не будет длины текста для шифровки или расшифровки
-            while len(key_to_longtxt) < len_enc:
-                key_to_longtxt += key[i]
-                i = (i + 1) % len(key)
-        return key_to_longtxt
+        for sumbol in self.text:
+            if sumbol not in alph:
+                key_to_longtxt += sumbol
+                continue
+            key_to_longtxt += key[i]
+            i = (i + 1) % len(key)
+        return key_to_longtxt, len(key_to_longtxt)
+
 
     # Функция шифрования текста(self - указатель с конструктора, the_text_to_enc - текст для шифровки, key - ключ)
     def encryption(self):
-        the_txt_to_enc = self.text.replace(' ', '')
-        key = self.key
-        len_enc = len(the_txt_to_enc)
-        key_to_longtxt = Vigenere.key_to_enc(key, len_enc)
+        the_txt_to_enc = self.text
+        key_to_longtxt, len_enc = Vigenere.key_to_enc()
         # Создаём переменную, содержащая в себе алфавит для шифра
         ALFABET = self.ALFABET
         enc_txt = ""
@@ -35,7 +31,7 @@ class Vigenere:
         for i in range(len_enc):
             # Проверка, есть ли символ для зашифровки в заданном алфавите
             if the_txt_to_enc[i] in ALFABET:
-                # Если он есть, мы действуем по формуле cj= mj + kj \mod{n}, где cj - шифрованный символ, mj - исходный символ, kj - символ ключа с заданным индексом, n - длина алфавита
+            # Если он есть, мы действуем по формуле cj= mj + kj \mod{n}, где cj - шифрованный символ, mj - исходный символ, kj - символ ключа с заданным индексом, n - длина алфавита
                 enc_txt += ALFABET[(ALFABET.index(the_txt_to_enc[i]) + ALFABET.index(key_to_longtxt[i])) % len(ALFABET)]
             else:
                 # Если его нет, то пропускаем
@@ -43,10 +39,11 @@ class Vigenere:
         return enc_txt
 
     # Функция расшифровки текста(self - указатель с конструктора, enc_txt - текст для расшифровки, key - ключ)
-    def decrypion(self):
-        len_enc = len(self.text)
-        enc_txt = self.text.replace(' ', '')
+    def decryption(self):
+        enc_txt = self.text
+        enc_txt = Vigenere.clean_punc(enc_txt).replace(' ', '')
         key = self.key
+        len_enc = len(enc_txt)
         key_to_longtxt = Vigenere.key_to_enc(key, len_enc)
         ALFABET = self.ALFABET
         decryrt_txt = ""
