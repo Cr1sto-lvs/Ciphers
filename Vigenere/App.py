@@ -1,228 +1,226 @@
-from tkinter import *
-from tkinter import filedialog as fd
-from tkinter import messagebox
-from dec import KAsiski, ENG_ALFABET, RU_ALFABET, enFreq, ruFreq
+import sys
+from PyQt6.QtWidgets import *
+from PyQt6.QtGui import QFont, QPalette, QColor
+from PyQt6.QtCore import Qt
 from Vigen import Vigenere
+from dec import Kasiski
 
-# Шрифты
-FONT_MAIN = ("Segoe UI", 10)
-FONT_TEXT = ("Consolas", 11)
-FONT_BUTTON = ("Segoe UI", 9, "bold")
+# Импортируем необходимые функции шифрования/дешифрации/взлома
+# (эти функции вы замените своими готовыми реализацией)
+# from cipher_vigenere import encrypt, decrypt, crack_cipher
 
+class VigenereApp(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
 
-class VApp:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Шифр Виженера - Шифрование/Дешифрование/Взлом")
-        self.root.geometry("750x520")
-        self.root.configure(bg="#f0f0f0")
+    
+    def init_ui(self):
+        # Настройка внешнего вида
+        self.setWindowTitle("Шифр Виженера")
+        self.resize(800, 600)
+        palette = QPalette()
+        palette.setColor(QPalette.ColorRole.Window, QColor("#FAFAFA"))
+        self.setPalette(palette)
+        
+        # Определяем текущую тему ОС и применяем подходящую палитру
+        self.apply_color_scheme()
 
-        # Переменные
-        self.language = StringVar(value="eng")
-        self.alphabet = ENG_ALFABET
-        self.freq = enFreq
+        layout = QVBoxLayout(self)
+        
+        # Верхняя панель выбора языка (единый выбор для текста и ключа)
+        language_group = QGroupBox("Язык (текст и ключ)")
+        lang_layout = QVBoxLayout(language_group)
+        self.lang_english_radio = QRadioButton("English")
+        self.lang_russian_radio = QRadioButton("Русский")
+        self.lang_english_radio.setChecked(True)  # Английский по умолчанию
+        
+        lang_layout.addWidget(self.lang_english_radio)
+        lang_layout.addWidget(self.lang_russian_radio)
+        layout.addWidget(language_group)
+        
+        # Блок загрузки файла и очистки
+        file_buttons_widget = QWidget()
+        file_buttons_layout = QHBoxLayout(file_buttons_widget)
+        open_file_button = QPushButton("Открыть файл")
+        clear_button = QPushButton("Очистить")
+        file_buttons_layout.addWidget(open_file_button)
+        file_buttons_layout.addWidget(clear_button)
+        layout.addWidget(file_buttons_widget)
+        
+        # Поле ввода исходного текста
+        source_label = QLabel("Исходный текст / Зашифрованный текст для взлома")
+        self.source_text_edit = QPlainTextEdit()
+        layout.addWidget(source_label)
+        layout.addWidget(self.source_text_edit)
+        
+        # Поле ввода ключа
+        key_label = QLabel("Ключ (для шифрования/расшифровки)")
+        self.key_line_edit = QLineEdit()
+        clear_key_button = QPushButton("Очистить")
+        key_widget = QWidget()
+        key_layout = QHBoxLayout(key_widget)
+        key_layout.addWidget(self.key_line_edit)
+        key_layout.addWidget(clear_key_button)
+        layout.addWidget(key_label)
+        layout.addWidget(key_widget)
+        
+        # Группа кнопок операций
+        buttons_widget = QWidget()
+        buttons_layout = QHBoxLayout(buttons_widget)
+        encrypt_button = QPushButton("Зашифровать")
+        decrypt_button = QPushButton("Расшифровать (с ключом)")
+        crack_button = QPushButton("ВЗЛОМАТЬ (без ключа)")
+        buttons_layout.addWidget(encrypt_button)
+        buttons_layout.addWidget(decrypt_button)
+        buttons_layout.addWidget(crack_button)
+        layout.addWidget(buttons_widget)
+        
+        # Поле вывода результата
+        result_label = QLabel("Результат")
+        self.result_text_edit = QPlainTextEdit()
+        layout.addWidget(result_label)
+        layout.addWidget(self.result_text_edit)
+        
+        # Назначаем стили элементам
+        font = QFont("Arial", 10)
+        self.setFont(font)
+        
+        # Цвета кнопок
+        open_file_button.setStyleSheet("background-color: #ADD8E6;")
+        clear_button.setStyleSheet("background-color: #FF6347;")
+        encrypt_button.setStyleSheet("background-color: #90EE90;")
+        decrypt_button.setStyleSheet("background-color: #ADD8E6;")
+        crack_button.setStyleSheet("background-color: #FFA500;")
+        
+        # Соединяем кнопки с действиями
+        open_file_button.clicked.connect(self.open_file)
+        clear_button.clicked.connect(self.clear_all)
+        clear_key_button.clicked.connect(self.clear_key)
+        encrypt_button.clicked.connect(self.perform_encrypt)
+        decrypt_button.clicked.connect(self.perform_decrypt)
+        crack_button.clicked.connect(self.perform_crack)
 
-        # Настройка стилей
-        self.setup_styles()
-
-        # Создание интерфейса
-        self.create_widgets()
-
-        # Привязка горячих клавиш
-        self.bind_hotkeys()
-
-    def setup_styles(self):
-        """Настройка цветовой схемы и стилей"""
-        self.bg_color = "#f5f5f5"
-        self.fg_color = "#2c3e50"
-        self.button_bg = "#3498db"
-        self.button_fg = "white"
-        self.frame_bg = "#ffffff"
-        self.root.configure(bg=self.bg_color)
-
-    def bind_hotkeys(self):
-        """Привязка Ctrl+C, Ctrl+V, Ctrl+A для всех текстовых полей"""
-        for widget in [self.message_text, self.result_text, self.key_entry]:
-            widget.bind('<Control-c>', self.copy)
-            widget.bind('<Control-C>', self.copy)
-            widget.bind('<Control-v>', self.paste)
-            widget.bind('<Control-V>', self.paste)
-            widget.bind('<Control-a>', self.select_all)
-            widget.bind('<Control-A>', self.select_all)
-
-    def copy(self, event):
-        """Копирование выделенного текста"""
-        try:
-            event.widget.event_generate('<<Copy>>')
-            return 'break'
-        except:
-            return None
-
-    def paste(self, event):
-        """Вставка текста из буфера обмена"""
-        try:
-            event.widget.event_generate('<<Paste>>')
-            return 'break'
-        except:
-            return None
-
-    def select_all(self, event):
-        """Выделение всего текста в поле"""
-        event.widget.tag_add(SEL, "1.0", END)
-        event.widget.mark_set(INSERT, "1.0")
-        event.widget.see(INSERT)
-        return 'break'
-
-    def create_widgets(self):
-        # Рамка для выбора языка
-        lang_frame = LabelFrame(self.root, text="Язык", padx=10, pady=5,
-                                font=FONT_MAIN, bg=self.frame_bg, fg=self.fg_color)
-        lang_frame.place(x=10, y=10, width=150, height=80)
-
-        Radiobutton(lang_frame, text="English", value="eng", variable=self.language,
-                    command=self.change_language, font=FONT_MAIN, bg=self.frame_bg).pack(anchor=W, pady=2)
-        Radiobutton(lang_frame, text="Русский", value="ru", variable=self.language,
-                    command=self.change_language, font=FONT_MAIN, bg=self.frame_bg).pack(anchor=W, pady=2)
-
-        # Рамка для исходного текста
-        input_frame = LabelFrame(self.root, text="Исходный текст / Зашифрованный текст для взлома",
-                                 padx=10, pady=5, font=FONT_MAIN, bg=self.frame_bg, fg=self.fg_color)
-        input_frame.place(x=170, y=10, width=570, height=150)
-
-        self.message_text = Text(input_frame, width=65, height=6, wrap=WORD,
-                                 font=FONT_TEXT, bg="white", fg="#2c3e50",
-                                 relief=FLAT, bd=1)
-        self.message_text.pack(side=LEFT, fill=BOTH, expand=True)
-
-        scroll_input = Scrollbar(input_frame, command=self.message_text.yview)
-        scroll_input.pack(side=RIGHT, fill=Y)
-        self.message_text.config(yscrollcommand=scroll_input.set)
-
-        # Кнопки для работы с файлом
-        btn_frame = Frame(self.root, bg=self.bg_color)
-        btn_frame.place(x=10, y=100, width=150, height=100)
-
-        Button(btn_frame, text="📂 Открыть файл", command=self.open_file,
-               font=FONT_BUTTON, bg=self.button_bg, fg=self.button_fg,
-               relief=RAISED, bd=1, cursor="hand2").pack(pady=3, fill=X)
-        Button(btn_frame, text="🗑 Очистить", command=self.clear_text,
-               font=FONT_BUTTON, bg="#e74c3c", fg=self.button_fg,
-               relief=RAISED, bd=1, cursor="hand2").pack(pady=3, fill=X)
-
-        # Рамка для ключа
-        key_frame = LabelFrame(self.root, text="Ключ (для шифрования/расшифровки)",
-                               padx=10, pady=5, font=FONT_MAIN, bg=self.frame_bg, fg=self.fg_color)
-        key_frame.place(x=10, y=210, width=730, height=60)
-
-        self.key_entry = Entry(key_frame, width=60, font=FONT_TEXT,
-                               bg="white", fg="#2c3e50", relief=FLAT, bd=1)
-        self.key_entry.pack(side=LEFT, padx=5, fill=X, expand=True)
-        Button(key_frame, text="✖ Очистить", command=self.clear_key,
-               font=FONT_BUTTON, bg="#95a5a6", fg=self.button_fg,
-               relief=RAISED, bd=1, cursor="hand2").pack(side=RIGHT, padx=5)
-
-        # Рамка для кнопок операций
-        operations_frame = Frame(self.root, bg=self.bg_color)
-        operations_frame.place(x=10, y=280, width=730, height=45)
-
-        Button(operations_frame, text="🔒 Зашифровать", command=self.do_encrypt,
-               font=FONT_BUTTON, bg="#27ae60", fg=self.button_fg,
-               relief=RAISED, bd=1, cursor="hand2").pack(side=LEFT, padx=5)
-        Button(operations_frame, text="🔓 Расшифровать (с ключом)", command=self.do_decrypt_with_key,
-               font=FONT_BUTTON, bg="#2980b9", fg=self.button_fg,
-               relief=RAISED, bd=1, cursor="hand2").pack(side=LEFT, padx=5)
-        Button(operations_frame, text="⚡ ВЗЛОМАТЬ (без ключа)", command=self.do_crack,
-               font=FONT_BUTTON, bg="#e67e22", fg=self.button_fg,
-               relief=RAISED, bd=1, cursor="hand2").pack(side=LEFT, padx=5)
-
-        # Рамка для результата
-        result_frame = LabelFrame(self.root, text="Результат",
-                                  padx=10, pady=5, font=FONT_MAIN, bg=self.frame_bg, fg=self.fg_color)
-        result_frame.place(x=10, y=335, width=730, height=170)
-
-        self.result_text = Text(result_frame, width=65, height=8, wrap=WORD,
-                                font=FONT_TEXT, bg="#fef9e7", fg="#2c3e50",
-                                relief=FLAT, bd=1)
-        self.result_text.pack(side=LEFT, fill=BOTH, expand=True)
-
-        scroll_result = Scrollbar(result_frame, command=self.result_text.yview)
-        scroll_result.pack(side=RIGHT, fill=Y)
-        self.result_text.config(yscrollcommand=scroll_result.set)
-
-        # Метка для отображения найденного ключа
-        self.key_label = Label(self.root, text="", font=FONT_MAIN,
-                               fg="#2980b9", bg=self.bg_color)
-        self.key_label.place(x=10, y=510)
-
-    def change_language(self):
-        if self.language.get() == "eng":
-            self.alphabet = ENG_ALFABET
-            self.freq = enFreq
+    def apply_color_scheme(self):
+        '''Определяет текущую тему ОС и назначает подходящую палитру.'''
+        # Определяем текущую тему ОС
+        dark_mode = (self.style().standardPalette().color(QPalette.ColorRole.Window).lightness() < 128)
+        
+        # Создаём палитры для светлого и тёмного режимов
+        light_palette = QPalette()
+        light_palette.setColor(QPalette.ColorRole.Window, QColor("#FAFAFA"))  # Светлый фон
+        light_palette.setColor(QPalette.ColorRole.WindowText, QColor("black"))  # Чёрный текст
+        light_palette.setColor(QPalette.ColorRole.Base, QColor("#FFFFFF"))  # Белый фон текста
+        light_palette.setColor(QPalette.ColorRole.Text, QColor("black"))  # Чёрный текст
+        light_palette.setColor(QPalette.ColorRole.Button, QColor("#ADD8E6"))  # Голубая кнопка
+        light_palette.setColor(QPalette.ColorRole.ButtonText, QColor("white"))  # Белый текст на кнопке
+        
+        dark_palette = QPalette()
+        dark_palette.setColor(QPalette.ColorRole.Window, QColor("#333333"))  # Тёмный фон
+        dark_palette.setColor(QPalette.ColorRole.WindowText, QColor("white"))  # Белый текст
+        dark_palette.setColor(QPalette.ColorRole.Base, QColor("#444444"))  # Тёмный фон текста
+        dark_palette.setColor(QPalette.ColorRole.Text, QColor("white"))  # Белый текст
+        dark_palette.setColor(QPalette.ColorRole.Button, QColor("#555555"))  # Серые кнопки
+        dark_palette.setColor(QPalette.ColorRole.ButtonText, QColor("white"))  # Белый текст на кнопке
+        
+        # Применяем подходящую палитру
+        if dark_mode:
+            self.setPalette(dark_palette)
         else:
-            self.alphabet = RU_ALFABET
-            self.freq = ruFreq
-
-    def get_text(self):
-        return self.message_text.get(1.0, END).strip().lower()
-
-    def set_result(self, text):
-        self.result_text.delete(1.0, END)
-        self.result_text.insert(1.0, text)
-
-    def clear_text(self):
-        self.message_text.delete(1.0, END)
-
-    def clear_key(self):
-        self.key_entry.delete(0, END)
-        self.key_label.config(text="")
-
+            self.setPalette(light_palette)
+    
+    def button_style(self, color_name):
+        """
+        Возвращает стиль кнопки в зависимости от выбранной темы.
+        """
+        if self.palette().color(QPalette.ColorRole.Window).lightness() < 128:
+            # Темная тема
+            background_color = "#555555"
+            text_color = "white"
+        else:
+            # Светлая тема
+            background_color = "#ADD8E6"
+            text_color = "white"
+        
+        colors = {
+            "light_blue": "#ADD8E6",
+            "red": "#FF6347",
+            "green": "#90EE90",
+            "blue": "#ADD8E6",
+            "orange": "#FFA500"
+        }
+        
+        return f"background-color: {colors[color_name]}; color: {text_color};"
+    
     def open_file(self):
-        file_name = fd.askopenfilename()
-        if file_name:
-            with open(file_name, "r", encoding="utf-8") as f:
-                self.message_text.insert(1.0, f.read())
-
-    def do_encrypt(self):
-        text = self.get_text()
-        key = self.key_entry.get().strip().lower()
-
-        if not text or not key:
-            messagebox.showwarning("Ошибка", "Введите текст и ключ")
-            return
-
-        result = Vigenere.encryption(text, key, self.alphabet)
-        self.set_result(result)
-
-    def do_decrypt_with_key(self):
-        text = self.get_text()
-        key = self.key_entry.get().strip().lower()
-
-        if not text or not key:
-            messagebox.showwarning("Ошибка", "Введите текст и ключ")
-            return
-
-        result = Vigenere.decrypion(text, key, self.alphabet)
-        self.set_result(result)
-
-    def do_crack(self):
-        text = self.get_text()
-
-        if not text:
-            messagebox.showwarning("Ошибка", "Введите текст для взлома")
-            return
-
-        key, decrypted = KAsiski.crack_vigenere(text, self.alphabet, self.freq)
-
-        if not key:
-            self.set_result(decrypted)
+        options = QFileDialog.Options()
+        filename, _ = QFileDialog.getOpenFileName(self,"Загрузить файл","","Text Files (*.txt);;All Files (*)")
+        if filename:
+            with open(filename, encoding="utf-8") as file:
+                content = file.read()
+                self.source_text_edit.setPlainText(content)
+    
+    def clear_all(self):
+        self.source_text_edit.clear()
+        self.result_text_edit.clear()
+    
+    def clear_key(self):
+        self.key_line_edit.clear()
+    
+    def detect_language(self):
+        """
+        Вспомогательная функция для определения выбранного языка.
+        Возвращает "RU" или "EN".
+        """
+        if self.lang_english_radio.isChecked():  # Первый радиоэлемент (Английский)
+            return "EN"
         else:
-            self.set_result(decrypted)
-            self.key_label.config(text=f"🔑 Найденный ключ: {key}")
-            self.key_entry.delete(0, END)
-            self.key_entry.insert(0, key)
+            return "RU"
+    
+    # def vizhiner_text_processing(self):
+    #     text = self.source_text_edit.toPlainText()
+    #     key = self.key_line_edit.text()
+        
+    #     # Определяем единый язык для текста и ключа
+    #     lang = self.detect_language()
+    #     return Vigenere(lang, text, key)
+
+    def perform_encrypt(self):
+        text = self.source_text_edit.toPlainText()
+        key = self.key_line_edit.text()
+        
+        # Определяем единый язык для текста и ключа
+        lang = self.detect_language()
+        Vigenere_cipher = Vigenere(lang, text, key)
+        # Передаём язык в функцию шифрования
+        encrypted_text = Vigenere_cipher.encryption()
+        self.result_text_edit.setPlainText(encrypted_text)
+    
+    def perform_decrypt(self):
+        text = self.source_text_edit.toPlainText()
+        key = self.key_line_edit.text()
+        
+        # Определяем единый язык для текста и ключа
+        lang = self.detect_language()
+        Vigenere_cipher = Vigenere(lang, text, key)
+        # Передаём язык в функцию расшифровки
+        decrypted_text = Vigenere_cipher.decryption()
+        self.result_text_edit.setPlainText(decrypted_text)
+    
+    def perform_crack(self):
+        text = self.source_text_edit.toPlainText()
+        analyzer = Kasiski(text)
+        # Определяем единый язык для текста и ключа
+        lang = self.detect_language()
+        
+        # Взлом производится только по языку текста
+        recovered_key = analyzer.recover_key()
+
+        self.result_text_edit.setPlainText(f"Восстановленный ключ: {recovered_key}\nРезультат расшифровки: {self.perform_decrypt()}")
 
 
-if __name__ == '__main__':
-    root = Tk()
-    app = VApp(root)
-    root.mainloop()
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = VigenereApp()
+    window.show()
+    sys.exit(app.exec())
