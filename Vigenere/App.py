@@ -1,4 +1,8 @@
 import sys
+import os
+import platform
+import subprocess
+import ctypes
 from PyQt6.QtWidgets import *
 from PyQt6.QtGui import QFont, QPalette, QColor
 from PyQt6.QtCore import Qt
@@ -19,9 +23,9 @@ class VigenereApp(QWidget):
         # Настройка внешнего вида
         self.setWindowTitle("Шифр Виженера")
         self.resize(800, 600)
-        palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor("#FAFAFA"))
-        self.setPalette(palette)
+        # palette = QPalette()
+        # palette.setColor(QPalette.ColorRole.Window, QColor("#FAFAFA"))
+        # self.setPalette(palette)
         
         # Определяем текущую тему ОС и применяем подходящую палитру
         self.apply_color_scheme()
@@ -83,15 +87,15 @@ class VigenereApp(QWidget):
         layout.addWidget(self.result_text_edit)
         
         # Назначаем стили элементам
-        font = QFont("Arial", 10)
+        font = QFont("Times New Roman", 14)
         self.setFont(font)
         
-        # Цвета кнопок
-        open_file_button.setStyleSheet("background-color: #ADD8E6;")
-        clear_button.setStyleSheet("background-color: #FF6347;")
-        encrypt_button.setStyleSheet("background-color: #90EE90;")
-        decrypt_button.setStyleSheet("background-color: #ADD8E6;")
-        crack_button.setStyleSheet("background-color: #FFA500;")
+        # Цвета кнопок (адаптивные)
+        open_file_button.setStyleSheet(self.button_style("light_blue"))
+        clear_button.setStyleSheet(self.button_style("red"))
+        encrypt_button.setStyleSheet(self.button_style("green"))
+        decrypt_button.setStyleSheet(self.button_style("blue"))
+        crack_button.setStyleSheet(self.button_style("orange"))
         
         # Соединяем кнопки с действиями
         open_file_button.clicked.connect(self.open_file)
@@ -102,55 +106,136 @@ class VigenereApp(QWidget):
         crack_button.clicked.connect(self.perform_crack)
 
     def apply_color_scheme(self):
-        '''Определяет текущую тему ОС и назначает подходящую палитру.'''
-        # Определяем текущую тему ОС
-        dark_mode = (self.style().standardPalette().color(QPalette.ColorRole.Window).lightness() < 128)
+        """
+        Применяет адаптивную цветовую схему, реагирующую на системную тему.
+        """
+        # Базовые стили для светлой и тёмной темы
+        light_stylesheet = """
+            QWidget {
+                background-color: #FAFAFA;
+                color: black;
+            }
+            QPushButton {
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QPushButton#light_blue {
+                background-color: #ADD8E6;
+                color: white;
+            }
+            QPushButton#red {
+                background-color: #FF6347;
+                color: white;
+            }
+            QPushButton#green {
+                background-color: #90EE90;
+                color: white;
+            }
+            QPushButton#blue {
+                background-color: #ADD8E6;
+                color: white;
+            }
+            QPushButton#orange {
+                background-color: #FFA500;
+                color: white;
+            }
+        """
         
-        # Создаём палитры для светлого и тёмного режимов
-        light_palette = QPalette()
-        light_palette.setColor(QPalette.ColorRole.Window, QColor("#FAFAFA"))  # Светлый фон
-        light_palette.setColor(QPalette.ColorRole.WindowText, QColor("black"))  # Чёрный текст
-        light_palette.setColor(QPalette.ColorRole.Base, QColor("#FFFFFF"))  # Белый фон текста
-        light_palette.setColor(QPalette.ColorRole.Text, QColor("black"))  # Чёрный текст
-        light_palette.setColor(QPalette.ColorRole.Button, QColor("#ADD8E6"))  # Голубая кнопка
-        light_palette.setColor(QPalette.ColorRole.ButtonText, QColor("white"))  # Белый текст на кнопке
+        dark_stylesheet = """
+            QWidget {
+                background-color: #333333;
+                color: white;
+            }
+            QPushButton {
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QPushButton#light_blue {
+                background-color: #555555;
+                color: white;
+            }
+            QPushButton#red {
+                background-color: #AA4444;
+                color: white;
+            }
+            QPushButton#green {
+                background-color: #44AA44;
+                color: white;
+            }
+            QPushButton#blue {
+                background-color: #555555;
+                color: white;
+            }
+            QPushButton#orange {
+                background-color: #AA8844;
+                color: white;
+            }
+        """
         
-        dark_palette = QPalette()
-        dark_palette.setColor(QPalette.ColorRole.Window, QColor("#333333"))  # Тёмный фон
-        dark_palette.setColor(QPalette.ColorRole.WindowText, QColor("white"))  # Белый текст
-        dark_palette.setColor(QPalette.ColorRole.Base, QColor("#444444"))  # Тёмный фон текста
-        dark_palette.setColor(QPalette.ColorRole.Text, QColor("white"))  # Белый текст
-        dark_palette.setColor(QPalette.ColorRole.Button, QColor("#555555"))  # Серые кнопки
-        dark_palette.setColor(QPalette.ColorRole.ButtonText, QColor("white"))  # Белый текст на кнопке
+        # Определяем текущую тему ОС (более надежный способ)
+        dark_mode = self.detect_system_theme()
         
-        # Применяем подходящую палитру
+        # Применяем подходящий стиль
         if dark_mode:
-            self.setPalette(dark_palette)
+            self.setStyleSheet(dark_stylesheet)
         else:
-            self.setPalette(light_palette)
+            self.setStyleSheet(light_stylesheet)
+    
+    def detect_system_theme(self):
+        """
+        Надежное определение текущей темы ОС.
+        Работает на Windows, macOS и Linux.
+        """
+        # Попытка определить тему через среду исполнения
+        # Этот способ более стабилен и не требует внешних API
+        try:
+            # Проверяем наличие специальной переменной окружения
+            # QT_QPA_PLATFORMTHEME=darkfusion указывает на тёмную тему
+            qt_theme = os.environ.get("QT_QPA_PLATFORMTHEME", "")
+            if "dark" in qt_theme.lower():
+                return True
+            
+            # Проверяем наличие других индикаторов тёмной темы
+            gtk_theme = os.environ.get("GTK_THEME", "")
+            if "dark" in gtk_theme.lower():
+                return True
+            
+            # Для macOS проверяем специальную переменную
+            apple_theme = os.environ.get("APPLE_INTERFACE_STYLE", "")
+            if apple_theme.lower() == "dark":
+                return True
+            
+            # Для Windows проверяем реестр (если доступно)
+            try:
+                import winreg
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+                value, regtype = winreg.QueryValueEx(key, "AppsUseLightTheme")
+                return value == 0  # 0 означает тёмную тему
+            except ImportError:
+                pass  # Модуль winreg отсутствует (не Windows)
+            except Exception:
+                pass  # Ошибка при чтении реестра
+            
+            # Если ничего не подошло, считаем светлую тему
+            return False
+        
+        except Exception:
+            # Если возникли проблемы, возвращаем светлую тему по умолчанию
+            return False
     
     def button_style(self, color_name):
         """
         Возвращает стиль кнопки в зависимости от выбранной темы.
         """
-        if self.palette().color(QPalette.ColorRole.Window).lightness() < 128:
-            # Темная тема
-            background_color = "#555555"
-            text_color = "white"
-        else:
-            # Светлая тема
-            background_color = "#ADD8E6"
-            text_color = "white"
-        
-        colors = {
-            "light_blue": "#ADD8E6",
-            "red": "#FF6347",
-            "green": "#90EE90",
-            "blue": "#ADD8E6",
-            "orange": "#FFA500"
+        stylesheet_id = {
+            "light_blue": "QPushButton#light_blue",
+            "red": "QPushButton#red",
+            "green": "QPushButton#green",
+            "blue": "QPushButton#blue",
+            "orange": "QPushButton#orange"
         }
         
-        return f"background-color: {colors[color_name]}; color: {text_color};"
+        return f"{stylesheet_id[color_name]}"
     
     def open_file(self):
         options = QFileDialog.Options()
@@ -216,7 +301,7 @@ class VigenereApp(QWidget):
         # Взлом производится только по языку текста
         recovered_key = analyzer.recover_key()
 
-        self.result_text_edit.setPlainText(f"Восстановленный ключ: {recovered_key}\nРезультат расшифровки: {self.perform_decrypt()}")
+        self.result_text_edit.setPlainText(f"Восстановленный ключ: {recovered_key}\nРезультат расшифровки: {Vigenere(lang, text, recovered_key).decryption()}")
 
 
 if __name__ == "__main__":
